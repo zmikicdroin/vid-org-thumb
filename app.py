@@ -11,8 +11,14 @@ import re
 
 app = Flask(__name__)
 
-# Configuration
-app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:///instance/database.db')
+# Configuration - Fixed database path
+INSTANCE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'instance')
+os.makedirs(INSTANCE_PATH, exist_ok=True)
+
+app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get(
+    'DATABASE_URL', 
+    f'sqlite:///{os.path.join(INSTANCE_PATH, "database.db")}'
+)
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['UPLOAD_FOLDER'] = os.environ.get('UPLOAD_FOLDER', 'uploads')
 app.config['THUMBNAIL_FOLDER'] = os.environ.get('THUMBNAIL_FOLDER', 'thumbnails')
@@ -24,7 +30,6 @@ db = SQLAlchemy(app)
 # Ensure directories exist
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 os.makedirs(app.config['THUMBNAIL_FOLDER'], exist_ok=True)
-os.makedirs('instance', exist_ok=True)
 
 # Database Models
 class Category(db.Model):
