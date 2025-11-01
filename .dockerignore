@@ -1,0 +1,47 @@
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Virtual environments
+env/
+venv/
+venv*/
+ENV/
+myenv/
+.env
+.python-version
+
+# Distribution / packaging
+build/
+dist/
+eggs/
+*.egg-info/
+
+# Database (persisted via volume)
+*.db
+*.sqlite
+
+# Git
+.git/
+.gitignore
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker
+.dockerignore
+
+# Logs
+*.log
+
+# Documentation
+*.md

@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Video Organizer - Gallery</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+  <nav class="navbar">
+    <h1>📹 Video Organizer</h1>
+    <div class="nav-links">
+      <a href="{{ url_for('index') }}" class="active">Gallery</a>
+      <a href="{{ url_for('calendar') }}">Calendar</a>
+    </div>
+  </nav>
+  <div class="container">
+    <div class="section">
+      <h2>➕ Create New Category</h2>
+      <form action="{{ url_for('add_category') }}" method="POST" class="form-inline">
+        <input type="text" name="category_name" placeholder="Enter category name" required>
+        <button type="submit" class="btn btn-primary">Add Category</button>
+      </form>
+    </div>
+    <div class="section">
+      <h2>🔗 Add YouTube Link</h2>
+      <form action="{{ url_for('add_youtube') }}" method="POST" class="form-inline">
+        <input type="url" name="youtube_url" placeholder="Enter YouTube URL" required>
+        <select name="category_id" required>
+          <option value="">Select Category</option>
+          {% for category in categories %}
+            <option value="{{ category.id }}">{{ category.name }}</option>
+          {% endfor %}
+        </select>
+        <button type="submit" class="btn btn-primary">Add YouTube Link</button>
+      </form>
+    </div>
+    <div class="section">
+      <h2>📤 Upload Video</h2>
+      <form action="{{ url_for('upload_video') }}" method="POST" enctype="multipart/form-data" class="form-inline">
+        <input type="text" name="video_title" placeholder="Video title" required>
+        <input type="file" name="video_file" accept="video/*" required>
+        <select name="category_id" required>
+          <option value="">Select Category</option>
+          {% for category in categories %}
+            <option value="{{ category.id }}">{{ category.name }}</option>
+          {% endfor %}
+        </select>
+        <button type="submit" class="btn btn-primary">Upload Video</button>
+      </form>
+    </div>
+    <div class="section">
+      <h2>🗂️ Video Gallery by Category</h2>
+      {% if videos_by_category %}
+        {% for category_name, videos in videos_by_category.items() %}
+          {% if videos %}
+            <div class="category-section">
+              <h3 class="category-title">{{ category_name }}</h3>
+              <div class="video-grid">
+                {% for video in videos %}
+                  <div class="video-card">
+                    <div class="thumbnail-container">
+                      {% if video.is_youtube %}
+                        <a href="{{ video.youtube_url }}" target="_blank">
+                          {% if video.thumbnail_path %}
+                            <img src="{{ url_for('thumbnail_file', filename=video.thumbnail_path) }}" alt="{{ video.title }}">
+                          {% else %}
+                            <div class="thumb-fallback">🎬 YouTube</div>
+                          {% endif %}
+                          <div class="play-overlay">▶️</div>
+                        </a>
+                      {% else %}
+                        <a href="{{ url_for('uploaded_file', filename=video.video_path) }}" target="_blank">
+                          {% if video.thumbnail_path %}
+                            <img src="{{ url_for('thumbnail_file', filename=video.thumbnail_path) }}" alt="{{ video.title }}">
+                          {% else %}
+                            <div class="thumb-fallback">🎥 Video</div>
+                          {% endif %}
+                          <div class="play-overlay">▶️</div>
+                        </a>
+                      {% endif %}
+                    </div>
+                    <div class="video-info">
+                      <h4>{{ video.title }}</h4>
+                      <p class="video-date">{{ video.upload_date.strftime('%Y-%m-%d %H:%M') }}</p>
+                      <span class="badge">{{ 'YouTube' if video.is_youtube else 'Uploaded' }}</span>
+                      <form action="{{ url_for('delete_video', video_id=video.id) }}" method="POST" style="display:inline;">
+                        <button type="submit" class="btn-delete" onclick="return confirm('Delete this video?')">🗑️</button>
+                      </form>
+                    </div>
+                  </div>
+                {% endfor %}
+              </div>
+            </div>
+          {% endif %}
+        {% endfor %}
+      {% else %}
+        <p class="empty-state">No videos yet. Add some YouTube links or upload videos!</p>
+      {% endif %}
+    </div>
+  </div>
+  <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+</body>
+</html>

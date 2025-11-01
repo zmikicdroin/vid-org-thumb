@@ -1,0 +1,32 @@
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      - FLASK_ENV=production
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - uploads-data:/app/uploads
+      - thumbnails-data:/app/thumbnails
+      - db-data:/app/instance
+    labels:
+      - "coolify.managed=true"
+      - "coolify.type=application"
+      - "coolify.name=video-organizer"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+volumes:
+  uploads-data:
+    driver: local
+  thumbnails-data:
+    driver: local
+  db-data:
+    driver: local

@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Video Organizer - Calendar</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+  <nav class="navbar">
+    <h1>📅 Video Organizer - Calendar View</h1>
+    <div class="nav-links">
+      <a href="{{ url_for('index') }}">Gallery</a>
+      <a href="{{ url_for('calendar') }}" class="active">Calendar</a>
+    </div>
+  </nav>
+  <div class="container">
+    <div class="section">
+      <h2>📆 Videos by Upload Date</h2>
+      {% if videos_by_date %}
+        <div class="calendar-view">
+          {% for date, videos in videos_by_date.items() %}
+            <div class="date-section">
+              <h3 class="date-header">{{ date }}</h3>
+              <div class="video-grid">
+                {% for video in videos %}
+                  <div class="video-card">
+                    <div class="thumbnail-container">
+                      {% if video.is_youtube %}
+                        <a href="{{ video.youtube_url }}" target="_blank">
+                          {% if video.thumbnail_path %}
+                            <img src="{{ url_for('thumbnail_file', filename=video.thumbnail_path) }}" alt="{{ video.title }}">
+                          {% else %}
+                            <div class="thumb-fallback">🎬 YouTube</div>
+                          {% endif %}
+                          <div class="play-overlay">▶️</div>
+                        </a>
+                      {% else %}
+                        <a href="{{ url_for('uploaded_file', filename=video.video_path) }}" target="_blank">
+                          {% if video.thumbnail_path %}
+                            <img src="{{ url_for('thumbnail_file', filename=video.thumbnail_path) }}" alt="{{ video.title }}">
+                          {% else %}
+                            <div class="thumb-fallback">🎥 Video</div>
+                          {% endif %}
+                          <div class="play-overlay">▶️</div>
+                        </a>
+                      {% endif %}
+                    </div>
+                    <div class="video-info">
+                      <h4>{{ video.title }}</h4>
+                      <p class="video-category">Category: {{ video.category.name }}</p>
+                      <p class="video-time">{{ video.upload_date.strftime('%H:%M') }}</p>
+                      <span class="badge">{{ 'YouTube' if video.is_youtube else 'Uploaded' }}</span>
+                      <form action="{{ url_for('delete_video', video_id=video.id) }}" method="POST" style="display:inline;">
+                        <button type="submit" class="btn-delete" onclick="return confirm('Delete this video?')">🗑️</button>
+                      </form>
+                    </div>
+                  </div>
+                {% endfor %}
+              </div>
+            </div>
+          {% endfor %}
+        </div>
+      {% else %}
+        <p class="empty-state">No videos uploaded yet!</p>
+      {% endif %}
+    </div>
+  </div>
+  <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+</body>
+</html>
