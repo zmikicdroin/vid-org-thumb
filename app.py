@@ -1,5 +1,7 @@
-from flask import Flask, render_template, request, redirect, url_for, jsonify, send_from_directory
+from flask import Flask, render_template, request, redirect, url_for, jsonify, send_from_directory, flash
 from flask_sqlalchemy import SQLAlchemy
+from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
+from flask_bcrypt import Bcrypt
 from datetime import datetime
 import os
 import cv2
@@ -24,14 +26,36 @@ app.config['UPLOAD_FOLDER'] = os.environ.get('UPLOAD_FOLDER', 'uploads')
 app.config['THUMBNAIL_FOLDER'] = os.environ.get('THUMBNAIL_FOLDER', 'thumbnails')
 app.config['MAX_CONTENT_LENGTH'] = 500 * 1024 * 1024  # 500MB
 app.config['ALLOWED_EXTENSIONS'] = {'mp4', 'avi', 'mov', 'mkv', 'webm', 'flv'}
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret-key-change-in-production')
 
 db = SQLAlchemy(app)
+bcrypt = Bcrypt(app)
+login_manager = LoginManager(app)
+login_manager.login_view = 'login'
+login_manager.login_message = 'Please log in to access this page.'
 
 # Ensure directories exist
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 os.makedirs(app.config['THUMBNAIL_FOLDER'], exist_ok=True)
 
 # Database Models
+class User(UserMixin, db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(80), unique=True, nullable=False)
+    email = db.Column(db.String(120), unique=True, nullable=False)
+    password_hash = db.Column(db.String(128), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    def set_password(self, password):
+        self.password_hash = bcrypt.generate_password_hash(password).decode('utf-8')
+    
+    def check_password(self, password):
+        return bcrypt.check_password_hash(self.password_hash, password)
+
+@login_manager.user_loader
+def load_user(user_id):
+    return User.query.get(int(user_id))
+
 class Category(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False, unique=True)
@@ -140,7 +164,79 @@ def generate_video_thumbnail(video_path):
         print(f"Error generating thumbnail: {e}")
         return None
 
+# Authentication Routes
+@app.route('/signup', methods=['GET', 'POST'])
+def signup():
+    if current_user.is_authenticated:
+        return redirect(url_for('index'))
+    
+    if request.method == 'POST':
+        username = request.form.get('username', '').strip()
+        email = request.form.get('email', '').strip()
+        password = request.form.get('password', '')
+        
+        if not username or not email or not password:
+            flash('All fields are required.', 'error')
+            return render_template('signup.html')
+        
+        # Check if username already exists
+        if User.query.filter_by(username=username).first():
+            flash('Username already exists.', 'error')
+            return render_template('signup.html')
+        
+        # Check if email already exists
+        if User.query.filter_by(email=email).first():
+            flash('Email already exists.', 'error')
+            return render_template('signup.html')
+        
+        # Create new user
+        new_user = User(username=username, email=email)
+        new_user.set_password(password)
+        db.session.add(new_user)
+        db.session.commit()
+        
+        flash('Account created successfully! Please log in.', 'success')
+        return redirect(url_for('login'))
+    
+    return render_template('signup.html')
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if current_user.is_authenticated:
+        return redirect(url_for('index'))
+    
+    if request.method == 'POST':
+        username_or_email = request.form.get('username_or_email', '').strip()
+        password = request.form.get('password', '')
+        
+        if not username_or_email or not password:
+            flash('Both fields are required.', 'error')
+            return render_template('login.html')
+        
+        # Try to find user by username or email
+        user = User.query.filter(
+            (User.username == username_or_email) | (User.email == username_or_email)
+        ).first()
+        
+        if user and user.check_password(password):
+            login_user(user)
+            next_page = request.args.get('next')
+            return redirect(next_page if next_page else url_for('index'))
+        else:
+            flash('Invalid username/email or password.', 'error')
+            return render_template('login.html')
+    
+    return render_template('login.html')
+
+@app.route('/logout')
+@login_required
+def logout():
+    logout_user()
+    flash('You have been logged out.', 'success')
+    return redirect(url_for('login'))
+
 @app.route('/')
+@login_required
 def index():
     categories = Category.query.order_by(Category.name).all()
     videos_by_category = {}
@@ -149,6 +245,7 @@ def index():
     return render_template('index.html', categories=categories, videos_by_category=videos_by_category)
 
 @app.route('/calendar')
+@login_required
 def calendar():
     videos = Video.query.order_by(Video.upload_date.desc()).all()
     videos_by_date = {}
@@ -171,6 +268,7 @@ def thumbnail_file(filename):
     return send_from_directory(app.config['THUMBNAIL_FOLDER'], filename, as_attachment=False)
 
 @app.route('/add_category', methods=['POST'])
+@login_required
 def add_category():
     category_name = request.form.get('category_name', '').strip()
     if category_name:
@@ -182,6 +280,7 @@ def add_category():
     return redirect(url_for('index'))
 
 @app.route('/add_youtube', methods=['POST'])
+@login_required
 def add_youtube():
     youtube_url = request.form.get('youtube_url')
     category_id = request.form.get('category_id')
@@ -201,6 +300,7 @@ def add_youtube():
     return redirect(url_for('index'))
 
 @app.route('/upload_video', methods=['POST'])
+@login_required
 def upload_video():
     if 'video_file' not in request.files:
         return redirect(url_for('index'))
@@ -230,11 +330,13 @@ def upload_video():
     return redirect(url_for('index'))
 
 @app.route('/get_categories')
+@login_required
 def get_categories():
     categories = Category.query.order_by(Category.name).all()
     return jsonify([{'id': c.id, 'name': c.name} for c in categories])
 
 @app.route('/delete_video/<int:video_id>', methods=['POST'])
+@login_required
 def delete_video(video_id):
     video = Video.query.get_or_404(video_id)
     
