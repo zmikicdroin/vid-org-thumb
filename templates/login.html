@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Login - Video Organizer</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <style>
+    .auth-container {
+      max-width: 400px;
+      margin: 3rem auto;
+      padding: 2rem;
+    }
+    .auth-card {
+      background: white;
+      border-radius: 10px;
+      padding: 2rem;
+      box-shadow: 0 6px 20px rgba(0,0,0,0.08);
+    }
+    .auth-card h2 {
+      color: #5b6df6;
+      margin-bottom: 1.5rem;
+      text-align: center;
+      font-size: 1.5rem;
+    }
+    .auth-form input {
+      width: 100%;
+      padding: 0.75rem;
+      border-radius: 8px;
+      border: 1px solid #e6e9f0;
+      margin-bottom: 1rem;
+      font-size: 1rem;
+    }
+    .auth-form input:focus {
+      outline: none;
+      border-color: #5b6df6;
+    }
+    .auth-form button {
+      width: 100%;
+      background: #5b6df6;
+      color: white;
+      border: none;
+      padding: 0.75rem;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 1rem;
+      transition: all 0.2s;
+    }
+    .auth-form button:hover {
+      background: #4a5ce6;
+      transform: translateY(-1px);
+    }
+    .auth-links {
+      text-align: center;
+      margin-top: 1rem;
+      color: #666;
+    }
+    .auth-links a {
+      color: #5b6df6;
+      text-decoration: none;
+      font-weight: 500;
+    }
+    .auth-links a:hover {
+      text-decoration: underline;
+    }
+    .flash-messages {
+      margin-bottom: 1rem;
+    }
+    .flash {
+      padding: 0.75rem;
+      border-radius: 8px;
+      margin-bottom: 0.5rem;
+    }
+    .flash.success {
+      background: #d4edda;
+      color: #155724;
+      border: 1px solid #c3e6cb;
+    }
+    .flash.error {
+      background: #f8d7da;
+      color: #721c24;
+      border: 1px solid #f5c6cb;
+    }
+  </style>
+</head>
+<body>
+  <div class="auth-container">
+    <div class="auth-card">
+      <h2>🔐 Login to Video Organizer</h2>
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+          <div class="flash-messages">
+            {% for category, message in messages %}
+              <div class="flash {{ category }}">{{ message }}</div>
+            {% endfor %}
+          </div>
+        {% endif %}
+      {% endwith %}
+      <form action="{{ url_for('login') }}" method="POST" class="auth-form">
+        <input type="text" name="username_or_email" placeholder="Username or Email" required autofocus>
+        <input type="password" name="password" placeholder="Password" required>
+        <button type="submit">Login</button>
+      </form>
+      <div class="auth-links">
+        Don't have an account? <a href="{{ url_for('signup') }}">Sign up</a>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
