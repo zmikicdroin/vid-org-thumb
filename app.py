@@ -68,9 +68,11 @@ def load_user(user_id):
 
 class Category(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(100), nullable=False, unique=True)
+    name = db.Column(db.String(100), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     videos = db.relationship('Video', backref='category', lazy=True)
+    user = db.relationship('User', backref='categories')
 
 class Video(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -80,7 +82,9 @@ class Video(db.Model):
     youtube_url = db.Column(db.String(300))
     is_youtube = db.Column(db.Boolean, default=False)
     category_id = db.Column(db.Integer, db.ForeignKey('category.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     upload_date = db.Column(db.DateTime, default=datetime.utcnow)
+    user = db.relationship('User', backref='videos')
 
 # Initialize database
 with app.app_context():
@@ -250,16 +254,16 @@ def logout():
 @app.route('/')
 @login_required
 def index():
-    categories = Category.query.order_by(Category.name).all()
+    categories = Category.query.filter_by(user_id=current_user.id).order_by(Category.name).all()
     videos_by_category = {}
     for category in categories:
-        videos_by_category[category.name] = Video.query.filter_by(category_id=category.id).order_by(Video.upload_date.desc()).all()
+        videos_by_category[category.name] = Video.query.filter_by(category_id=category.id, user_id=current_user.id).order_by(Video.upload_date.desc()).all()
     return render_template('index.html', categories=categories, videos_by_category=videos_by_category)
 
 @app.route('/calendar')
 @login_required
 def calendar():
-    videos = Video.query.order_by(Video.upload_date.desc()).all()
+    videos = Video.query.filter_by(user_id=current_user.id).order_by(Video.upload_date.desc()).all()
     videos_by_date = {}
     for video in videos:
         date_key = video.upload_date.strftime('%Y-%m-%d')
@@ -284,9 +288,9 @@ def thumbnail_file(filename):
 def add_category():
     category_name = request.form.get('category_name', '').strip()
     if category_name:
-        existing = Category.query.filter_by(name=category_name).first()
+        existing = Category.query.filter_by(name=category_name, user_id=current_user.id).first()
         if not existing:
-            new_category = Category(name=category_name)
+            new_category = Category(name=category_name, user_id=current_user.id)
             db.session.add(new_category)
             db.session.commit()
     return redirect(url_for('index'))
@@ -305,7 +309,8 @@ def add_youtube():
                 thumbnail_path=thumbnail_filename or '',
                 youtube_url=youtube_url,
                 is_youtube=True,
-                category_id=int(category_id)
+                category_id=int(category_id),
+                user_id=current_user.id
             )
             db.session.add(new_video)
             db.session.commit()
@@ -335,7 +340,8 @@ def upload_video():
             thumbnail_path=thumbnail_filename or '',
             video_path=filename,
             is_youtube=False,
-            category_id=int(category_id)
+            category_id=int(category_id),
+            user_id=current_user.id
         )
         db.session.add(new_video)
         db.session.commit()
@@ -344,13 +350,13 @@ def upload_video():
 @app.route('/get_categories')
 @login_required
 def get_categories():
-    categories = Category.query.order_by(Category.name).all()
+    categories = Category.query.filter_by(user_id=current_user.id).order_by(Category.name).all()
     return jsonify([{'id': c.id, 'name': c.name} for c in categories])
 
 @app.route('/delete_video/<int:video_id>', methods=['POST'])
 @login_required
 def delete_video(video_id):
-    video = Video.query.get_or_404(video_id)
+    video = Video.query.filter_by(id=video_id, user_id=current_user.id).first_or_404()
     
     if video.thumbnail_path:
         tpath = os.path.join(app.config['THUMBNAIL_FOLDER'], video.thumbnail_path)
