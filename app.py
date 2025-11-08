@@ -3,6 +3,7 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from flask_bcrypt import Bcrypt
 from datetime import datetime
+from urllib.parse import urlparse, urljoin
 import os
 import cv2
 from werkzeug.utils import secure_filename
@@ -37,6 +38,15 @@ login_manager.login_message = 'Please log in to access this page.'
 # Ensure directories exist
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 os.makedirs(app.config['THUMBNAIL_FOLDER'], exist_ok=True)
+
+# Helper function to validate redirect URLs
+def is_safe_url(target):
+    """Check if the target URL is safe for redirects"""
+    if not target:
+        return False
+    ref_url = urlparse(request.host_url)
+    test_url = urlparse(urljoin(request.host_url, target))
+    return test_url.scheme in ('http', 'https') and ref_url.netloc == test_url.netloc
 
 # Database Models
 class User(UserMixin, db.Model):
@@ -221,7 +231,9 @@ def login():
         if user and user.check_password(password):
             login_user(user)
             next_page = request.args.get('next')
-            return redirect(next_page if next_page else url_for('index'))
+            if next_page and is_safe_url(next_page):
+                return redirect(next_page)
+            return redirect(url_for('index'))
         else:
             flash('Invalid username/email or password.', 'error')
             return render_template('login.html')
@@ -358,7 +370,10 @@ def delete_video(video_id):
     
     db.session.delete(video)
     db.session.commit()
-    return redirect(request.referrer or url_for('index'))
+    referrer = request.referrer
+    if referrer and is_safe_url(referrer):
+        return redirect(referrer)
+    return redirect(url_for('index'))
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)
