@@ -1,9 +1,10 @@
-from flask import Flask, render_template, request, redirect, url_for, jsonify, send_from_directory, flash
+from flask import Flask, render_template, request, redirect, url_for, jsonify, send_from_directory, flash, abort
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from flask_bcrypt import Bcrypt
 from datetime import datetime
 from urllib.parse import urlparse, urljoin
+from functools import wraps
 import os
 import cv2
 from werkzeug.utils import secure_filename
@@ -47,6 +48,23 @@ def is_safe_url(target):
     ref_url = urlparse(request.host_url)
     test_url = urlparse(urljoin(request.host_url, target))
     return test_url.scheme in ('http', 'https') and ref_url.netloc == test_url.netloc
+
+# Helper function to check if current user is admin
+def is_admin():
+    """Check if the current user is the admin user"""
+    return current_user.is_authenticated and current_user.username == 'admin'
+
+# Decorator to require admin access
+def admin_required(f):
+    """Decorator to require admin access for a route"""
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not current_user.is_authenticated:
+            return redirect(url_for('login', next=request.url))
+        if not is_admin():
+            abort(403)
+        return f(*args, **kwargs)
+    return decorated_function
 
 # Database Models
 class User(UserMixin, db.Model):
@@ -250,6 +268,24 @@ def logout():
     logout_user()
     flash('You have been logged out.', 'success')
     return redirect(url_for('login'))
+
+# Admin Routes
+@app.route('/admin/dashboard')
+@admin_required
+def admin_dashboard():
+    """Admin dashboard showing all users"""
+    users = User.query.order_by(User.username).all()
+    return render_template('admin_dashboard.html', users=users)
+
+@app.route('/admin/impersonate/<username>')
+@admin_required
+def admin_impersonate(username):
+    """Allow admin to impersonate another user"""
+    user = User.query.filter_by(username=username).first_or_404()
+    logout_user()
+    login_user(user)
+    flash(f'You are now logged in as {username}.', 'success')
+    return redirect(url_for('index'))
 
 @app.route('/')
 @login_required
