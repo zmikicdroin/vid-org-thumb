@@ -12,6 +12,9 @@
     <div class="nav-links">
       <a href="{{ url_for('index') }}">Gallery</a>
       <a href="{{ url_for('calendar') }}" class="active">Calendar</a>
+      {% if is_admin %}
+      <a href="{{ url_for('admin_dashboard') }}">Admin</a>
+      {% endif %}
       <a href="{{ url_for('logout') }}">Logout</a>
     </div>
   </nav>

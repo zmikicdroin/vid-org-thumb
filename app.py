@@ -1,9 +1,10 @@
-from flask import Flask, render_template, request, redirect, url_for, jsonify, send_from_directory, flash
+from flask import Flask, render_template, request, redirect, url_for, jsonify, send_from_directory, flash, abort
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from flask_bcrypt import Bcrypt
 from datetime import datetime
 from urllib.parse import urlparse, urljoin
+from functools import wraps
 import os
 import cv2
 from werkzeug.utils import secure_filename
@@ -47,6 +48,21 @@ def is_safe_url(target):
     ref_url = urlparse(request.host_url)
     test_url = urlparse(urljoin(request.host_url, target))
     return test_url.scheme in ('http', 'https') and ref_url.netloc == test_url.netloc
+
+# Helper function to check if current user is admin
+def is_admin():
+    """Check if the current user is the admin user"""
+    return current_user.is_authenticated and current_user.username == 'admin'
+
+# Decorator to require admin access
+def admin_required(f):
+    """Decorator to restrict access to admin users only"""
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not is_admin():
+            abort(403)
+        return f(*args, **kwargs)
+    return decorated_function
 
 # Database Models
 class User(UserMixin, db.Model):
@@ -258,7 +274,7 @@ def index():
     videos_by_category = {}
     for category in categories:
         videos_by_category[category.name] = Video.query.filter_by(category_id=category.id, user_id=current_user.id).order_by(Video.upload_date.desc()).all()
-    return render_template('index.html', categories=categories, videos_by_category=videos_by_category)
+    return render_template('index.html', categories=categories, videos_by_category=videos_by_category, is_admin=is_admin())
 
 @app.route('/calendar')
 @login_required
@@ -268,7 +284,7 @@ def calendar():
     for video in videos:
         date_key = video.upload_date.strftime('%Y-%m-%d')
         videos_by_date.setdefault(date_key, []).append(video)
-    return render_template('calendar.html', videos_by_date=videos_by_date)
+    return render_template('calendar.html', videos_by_date=videos_by_date, is_admin=is_admin())
 
 @app.route('/health')
 def health():
@@ -379,6 +395,26 @@ def delete_video(video_id):
     referrer = request.referrer
     if referrer and is_safe_url(referrer):
         return redirect(referrer)
+    return redirect(url_for('index'))
+
+# Admin Routes
+@app.route('/admin/dashboard')
+@login_required
+@admin_required
+def admin_dashboard():
+    """Admin dashboard displaying all users"""
+    users = User.query.order_by(User.created_at.desc()).all()
+    return render_template('admin_dashboard.html', users=users)
+
+@app.route('/admin/impersonate/<int:user_id>')
+@login_required
+@admin_required
+def admin_impersonate(user_id):
+    """Allow admin to impersonate another user"""
+    user = User.query.get_or_404(user_id)
+    logout_user()
+    login_user(user)
+    flash(f'Now logged in as {user.username}', 'success')
     return redirect(url_for('index'))
 
 if __name__ == '__main__':

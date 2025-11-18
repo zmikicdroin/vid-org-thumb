@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Admin Dashboard - Video Organizer</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+  <nav class="navbar">
+    <h1>🔐 Admin Dashboard</h1>
+    <div class="nav-links">
+      <a href="{{ url_for('index') }}">Gallery</a>
+      <a href="{{ url_for('calendar') }}">Calendar</a>
+      <a href="{{ url_for('admin_dashboard') }}" class="active">Admin</a>
+      <a href="{{ url_for('logout') }}">Logout</a>
+    </div>
+  </nav>
+  <div class="container">
+    <div class="section">
+      <h2>👥 All Registered Users</h2>
+      {% if users %}
+        <div class="user-list">
+          <table class="admin-table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Username</th>
+                <th>Email</th>
+                <th>Created At</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for user in users %}
+              <tr>
+                <td>{{ user.id }}</td>
+                <td>
+                  {% if user.username == current_user.username %}
+                    <strong>{{ user.username }} (You)</strong>
+                  {% else %}
+                    {{ user.username }}
+                  {% endif %}
+                </td>
+                <td>{{ user.email }}</td>
+                <td>{{ user.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                <td>
+                  {% if user.username != current_user.username %}
+                    <a href="{{ url_for('admin_impersonate', user_id=user.id) }}" class="btn-impersonate" onclick="return confirm('Login as {{ user.username }}?')">
+                      🔄 Login as User
+                    </a>
+                  {% else %}
+                    <span class="current-user-badge">Current User</span>
+                  {% endif %}
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <p class="empty-state">No users found in the system.</p>
+      {% endif %}
+    </div>
+  </div>
+  <style>
+    .admin-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 1rem;
+    }
+    .admin-table th {
+      background: #5b6df6;
+      color: white;
+      padding: 0.8rem;
+      text-align: left;
+      font-weight: 600;
+    }
+    .admin-table td {
+      padding: 0.8rem;
+      border-bottom: 1px solid #e6e9f0;
+    }
+    .admin-table tbody tr:hover {
+      background: #f9fafb;
+    }
+    .btn-impersonate {
+      background: #10b981;
+      color: white;
+      padding: 0.5rem 1rem;
+      border-radius: 6px;
+      text-decoration: none;
+      font-size: 0.9rem;
+      display: inline-block;
+      transition: all 0.2s;
+    }
+    .btn-impersonate:hover {
+      background: #059669;
+      transform: translateY(-1px);
+    }
+    .current-user-badge {
+      color: #666;
+      font-style: italic;
+      font-size: 0.9rem;
+    }
+  </style>
+</body>
+</html>
